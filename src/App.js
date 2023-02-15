@@ -1,23 +1,67 @@
 import logo from './logo.svg';
 import './App.css';
+import { AptosClient, FaucetClient, AptosAccount, getAddressFromAccountOrAddress} from 'aptos';
+
 
 function App() {
+  const NODE_URL = "https://fullnode.devnet.aptoslabs.com"; //node connection url
+  const FAUCET_URL = "https://faucet.devnet.aptoslabs.com"; //faucet url
+  const aptosCoin = "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>"; //aptos coin
+
+  const client = new AptosClient(NODE_URL); //aptos client
+  const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL, null); //aptos faucet client
+
+  const account1 = new AptosAccount(); //key pair generates
+  console.log(account1)
+  
+  const giveFaucet=async()=>{
+  await faucetClient.fundAccount(account1.address(), 100_000_000);
+  //fund the account with the faucets
+  let resources = await client.getAccountResources(account1.address());
+  //returns account resources
+  
+  let accountResource = resources.find((r) => r.type === aptosCoin);
+    //checks for the aptosCoin
+
+  console.log(`account1 coins: ${accountResource.data.coin.value}. Should be 100_000_000!`);
+  // gives account balance
+
+  const account2 = new AptosAccount();
+  await faucetClient.fundAccount(account2.address(), 0);
+
+  const payload = {
+    type: "entry_function_payload",
+    function: "0x1::coin::transfer",
+    type_arguments: ["0x1::aptos_coin::AptosCoin"],
+    arguments: [account2.address().hex(), 717],
+  };
+
+  const txnRequest = await client.generateTransaction(account1.address(), payload);
+  //generates txn
+
+  const signedTxn = await client.signTransaction(account1, txnRequest);
+  //sign the txn
+
+  const transactionRes = await client.submitTransaction(signedTxn);
+  //submit txn to blockchain
+
+  await client.waitForTransaction(transactionRes.hash);
+   //wait for the confirmation
+
+   resources = await client.getAccountResources(account2.address());
+   //returns account resources
+   
+   accountResource = resources.find((r) => r.type === aptosCoin);
+     //checks for the aptosCoin
+ 
+     console.log(`account2 coins: ${accountResource.data.coin.value}. Should be 717!`);
+  }
+
+  giveFaucet()
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <p>Hello</p>
     </div>
   );
 }
